@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">一袖</string>
+    <string name="quick_note">即记</string>
+    <string name="quick_note_long">写一条即记</string>
+    <style name="Theme.Yixiu" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">#F8F6FC</item>
+    </style>
+</resources>

@@ -1,0 +1,13 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="quick-note"
+        android:shortcutLongLabel="@string/quick_note_long"
+        android:shortcutShortLabel="@string/quick_note">
+        <intent
+            android:action="io.github.siye.littletoolbox.OPEN_QUICK_NOTE"
+            android:targetClass="io.github.siye.littletoolbox.MainActivity"
+            android:targetPackage="io.github.siye.littletoolbox" />
+    </shortcut>
+</shortcuts>
