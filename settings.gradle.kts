@@ -16,4 +16,13 @@ dependencyResolutionManagement {
 
 rootProject.name = "SYLittleToolBox"
 
-include(":app", ":core:tool-api", ":tools:quicknote", ":tools:textstats", ":tools:wifi")
+include(
+    ":app",
+    ":core:tool-api",
+    ":tools:audio",
+    ":tools:image",
+    ":tools:quicknote",
+    ":tools:textstats",
+    ":tools:trail",
+    ":tools:wifi",
+)

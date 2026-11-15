@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.service.quicksettings.TileService
@@ -14,6 +15,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.content.IntentCompat
 
 private const val OPEN_QUICK_NOTE = "io.github.siye.littletoolbox.OPEN_QUICK_NOTE"
 internal const val QUICK_NOTE_ID = "quick-note"
@@ -38,12 +40,36 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         when (intent.action) {
             OPEN_QUICK_NOTE -> toolbox.openQuickNote()
-            Intent.ACTION_SEND -> {
-                val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-                intent.removeExtra(Intent.EXTRA_TEXT)
-                if (!text.isNullOrEmpty()) toolbox.shareText(text)
-            }
+            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> handleShare(intent)
         }
+    }
+
+    private fun handleShare(intent: Intent) {
+        val type = intent.type.orEmpty()
+        if (type == "text/plain") {
+            val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+            intent.removeExtra(Intent.EXTRA_TEXT)
+            if (!text.isNullOrEmpty()) toolbox.shareText(text)
+            return
+        }
+
+        val tool = when {
+            type.startsWith("image/") -> "image"
+            type.startsWith("video/") -> "audio"
+            else -> return
+        }
+        val streams = if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+        } else {
+            listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
+        }
+        val clips = intent.clipData?.let { data ->
+            List(data.itemCount) { index -> data.getItemAt(index).uri }
+        }.orEmpty()
+        val uris = (streams + clips).filterNotNull().filter { it.scheme == "content" }.distinct()
+        intent.removeExtra(Intent.EXTRA_STREAM)
+        intent.clipData = null
+        if (uris.isNotEmpty()) toolbox.shareMedia(tool, uris)
     }
 }
 

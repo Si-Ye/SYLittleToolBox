@@ -55,12 +55,13 @@ object WifiTool : ToolModule {
         id = "wifi",
         name = "Wi‑Fi 探查",
         category = ToolCategory.NETWORK,
-        description = "查看 Wi‑Fi 连接与周围接入点，验证 Wi‑Fi RTT 测距。",
-        keywords = listOf("wifi", "无线网络", "接入点", "RTT", "FTM", "测距", "路由器"),
+        description = "查看网络连接、站点可达性和接入点测距。",
+        keywords = listOf("wifi", "无线网络", "接入点", "RTT", "FTM", "测距", "路由器", "GitHub", "Google", "YouTube"),
         help = listOf(
             "开启 Wi‑Fi 和位置服务，按提示授权后，点「扫描接入点」。",
             "在支持 Wi‑Fi RTT 的接入点下点「开始测距」。切换到后台或离开页面会停止采样。",
             "接入点的 dBm 是扫描收到的无线信号强度。RTT 测量的是手机到所选接入点的距离。",
+            "点「开始检测」检查四个站点的 HTTPS 响应。结果按当前系统网络记录，包括 VPN 的影响。",
         ),
     )
 
@@ -205,6 +206,7 @@ private fun WifiDiagnosticsScreen() {
                 OutlinedButton(onClick = { refreshDevice() }) { Text("刷新连接状态") }
             }
         }
+        item { WebsiteReachability() }
         item {
             Section("周围接入点") {
                 Detail("列表显示接入点的广播能力与信号强度。测距目标由 BSSID 标识。")

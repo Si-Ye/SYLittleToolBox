@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.siye.littletoolbox"
         minSdk = libs.versions.android.min.get().toInt()
         targetSdk = libs.versions.android.compile.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0-dev"
+        versionCode = 2
+        versionName = "0.2.0-dev"
     }
 
     buildFeatures {
@@ -36,8 +36,11 @@ android {
 
 dependencies {
     implementation(project(":core:tool-api"))
+    implementation(project(":tools:audio"))
+    implementation(project(":tools:image"))
     implementation(project(":tools:quicknote"))
     implementation(project(":tools:textstats"))
+    implementation(project(":tools:trail"))
     implementation(project(":tools:wifi"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

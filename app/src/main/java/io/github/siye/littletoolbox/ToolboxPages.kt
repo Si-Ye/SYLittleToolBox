@@ -2,7 +2,6 @@ package io.github.siye.littletoolbox
 
 import android.content.Intent
 import android.net.Uri
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,13 +9,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -54,94 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.siye.littletoolbox.core.tool.ToolCategory
-
-@Composable
-internal fun HomePage(preferences: ToolboxPreferences, onSearch: () -> Unit, onTool: (String) -> Unit) {
-    val all = ToolCatalog.ordered(preferences.homeOrder)
-    val recent = preferences.recent.mapNotNull(ToolCatalog::find).filter { it.module != null }
-    val gutter = LocalPageGutter.current
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(gutter, 18.dp, gutter, 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                androidx.compose.foundation.Image(painterResource(R.drawable.ic_launcher), null, Modifier.size(43.dp))
-                Text("一袖", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
-            }
-        }
-        item {
-            Surface(
-                onClick = onSearch,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 17.dp, vertical = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(11.dp),
-                ) {
-                    Icon(painterResource(R.drawable.ic_search), null, tint = MaterialTheme.colorScheme.primary)
-                    Text("按名称或用途搜索工具", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        if (recent.isNotEmpty()) {
-            item { SectionHeading("最近使用") }
-            items(recent.chunked(2)) { row -> ToolCardRow(row, onTool) }
-        }
-        item { SectionHeading("全部工具") }
-        items(all.chunked(2)) { row -> ToolCardRow(row, onTool) }
-    }
-}
-
-@Composable
-private fun ToolCardRow(row: List<ToolEntry>, onTool: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        row.forEach { entry ->
-            Card(
-                onClick = { onTool(entry.info.id) },
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    ToolIcon(entry)
-                    Text(entry.info.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        entry.info.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        minLines = 2,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (entry.module == null) {
-                        Text("开发中", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-        }
-        if (row.size == 1) Box(Modifier.weight(1f))
-    }
-}
-
-@Composable
-internal fun CategoriesPage(onTool: (String) -> Unit) {
-    val gutter = LocalPageGutter.current
-    LazyColumn(contentPadding = PaddingValues(gutter, 16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        item { PageHeading("分类") }
-        ToolCategory.entries.forEach { category ->
-            val matches = ToolCatalog.entries.filter { it.info.category == category }
-            if (matches.isNotEmpty()) {
-                item { SectionHeading(category.title) }
-                items(matches, key = { it.info.id }) { entry -> ToolRow(entry, onTool) }
-            }
-        }
-    }
-}
 
 @Composable
 internal fun SearchPage(onTool: (String) -> Unit) {
@@ -263,7 +170,7 @@ internal fun SettingsPage(preferences: ToolboxPreferences, state: ToolboxState, 
         item { PageHeading("设置") }
         item { SectionHeading("外观") }
         item { ChoiceRow("亮暗模式", preferences.colorMode, ColorMode.entries, { it.title }, { state.colorMode(it) }) }
-        item { ChoiceRow("主题色", preferences.palette, Palette.entries, { it.title }, { state.palette(it) }) }
+        item { PaletteChoiceRow(preferences.palette) { onRoute("palettes") } }
         item { ChoiceRow("文字大小", preferences.typeSize, TypeSize.entries, { it.title }, { state.typeSize(it) }) }
         item { ChoiceRow("布局密度", preferences.density, DensityMode.entries, { it.title }, { state.density(it) }) }
         item { ChoiceRow("页面动效", preferences.motion, Motion.entries, { it.title }, { state.motion(it) }) }
@@ -281,11 +188,7 @@ internal fun SettingsPage(preferences: ToolboxPreferences, state: ToolboxState, 
                 }
             })
         }
-        item {
-            SettingsRow("应用权限", "在系统设置中查看一袖的权限", {
-                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-            })
-        }
+        item { SettingsRow("应用权限", "查看用途、申请权限和核对授权状态", { onRoute("permissions") }) }
         item { SectionHeading("应用") }
         item { SettingsRow("使用帮助", "查看操作步骤与工具说明", { onRoute("help") }) }
         item { SettingsRow("关于一袖", BuildConfig.VERSION_NAME, { onRoute("about") }) }
@@ -315,7 +218,7 @@ internal fun HomeOrderPage(preferences: ToolboxPreferences, state: ToolboxState)
 internal fun AboutPage() {
     val context = LocalContext.current
     DetailColumn {
-        androidx.compose.foundation.Image(painterResource(R.drawable.ic_launcher), null, Modifier.size(58.dp))
+        BrandMark(58.dp)
         PageHeading("一袖")
         Text("版本 ${BuildConfig.VERSION_NAME} · 开发者 Si-Ye")
         Text("项目许可证 Apache-2.0")
@@ -401,7 +304,7 @@ private fun SectionHeading(title: String) {
 }
 
 @Composable
-private fun SettingsRow(
+internal fun SettingsRow(
     title: String,
     subtitle: String,
     onClick: (() -> Unit)? = null,

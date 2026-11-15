@@ -4,6 +4,6 @@
     <string name="quick_note_long">写一条即记</string>
     <style name="Theme.Yixiu" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowBackground">#F8F6FC</item>
+        <item name="android:windowBackground">#F5F6F8</item>
     </style>
 </resources>

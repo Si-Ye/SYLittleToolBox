@@ -2,6 +2,7 @@ package io.github.siye.littletoolbox
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -9,11 +10,13 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.siye.littletoolbox.core.tool.ToolCategory
 import io.github.siye.littletoolbox.core.tool.ToolInfo
 import io.github.siye.littletoolbox.core.tool.ToolModule
+import io.github.siye.littletoolbox.tools.audio.AudioTool
+import io.github.siye.littletoolbox.tools.image.ImageTool
 import io.github.siye.littletoolbox.tools.quicknote.QuickNoteTool
 import io.github.siye.littletoolbox.tools.textstats.TextStatsTool
+import io.github.siye.littletoolbox.tools.trail.TrailTool
 import io.github.siye.littletoolbox.tools.wifi.WifiTool
 import java.io.IOException
 import java.util.Locale
@@ -30,7 +33,17 @@ import org.json.JSONException
 import org.json.JSONObject
 
 internal enum class ColorMode(val title: String) { SYSTEM("跟随系统"), LIGHT("浅色"), DARK("深色") }
-internal enum class Palette(val title: String) { LAVENDER("薰衣草"), SAGE("鼠尾草"), MIST("薄雾蓝") }
+internal enum class Palette(val title: String) {
+    GRAPHITE("石墨灰"),
+    LAVENDER("薰衣草"),
+    IRIS("鸢尾"),
+    PERIWINKLE("长春花"),
+    SAGE("鼠尾草"),
+    MIST("海雾"),
+    SPRING("新芽绿"),
+    CYAN("电光青"),
+    VIOLET("电光紫"),
+}
 internal enum class TypeSize(val title: String, val scale: Float) {
     SMALL("小", 0.9f), STANDARD("标准", 1f), LARGE("大", 1.15f)
 }
@@ -44,7 +57,7 @@ internal enum class Motion(val title: String, val durationMillis: Int) {
 internal data class ToolCollection(val id: String, val name: String, val tools: List<String>)
 internal data class ToolboxPreferences(
     val colorMode: ColorMode = ColorMode.SYSTEM,
-    val palette: Palette = Palette.LAVENDER,
+    val palette: Palette = Palette.GRAPHITE,
     val typeSize: TypeSize = TypeSize.STANDARD,
     val density: DensityMode = DensityMode.STANDARD,
     val motion: Motion = Motion.STANDARD,
@@ -59,10 +72,10 @@ internal data class ToolEntry(val info: ToolInfo, val module: ToolModule? = null
 internal object ToolCatalog {
     val entries = listOf(
         WifiTool.entry(),
-        pending("trail", "回迹", ToolCategory.TRAVEL, "记录步行轨迹并找回停车点", "停车", "路线", "定位"),
+        TrailTool.entry(),
         QuickNoteTool.entry(),
-        pending("image", "图片快转", ToolCategory.IMAGE, "批量转换格式并按目标体积导出", "压缩", "照片", "JPG", "PNG", "WebP"),
-        pending("audio", "视频取声", ToolCategory.MEDIA, "从视频导出 M4A、WAV 和 MP3", "提取音频", "音频", "MP3"),
+        ImageTool.entry(),
+        AudioTool.entry(),
         TextStatsTool.entry(),
     )
 
@@ -80,14 +93,6 @@ internal object ToolCatalog {
     }
 
     private fun ToolModule.entry() = ToolEntry(info, this)
-
-    private fun pending(
-        id: String,
-        name: String,
-        category: ToolCategory,
-        description: String,
-        vararg keywords: String,
-    ) = ToolEntry(ToolInfo(id, name, category, description, keywords.toList(), emptyList()))
 }
 
 private val Context.toolboxStore by preferencesDataStore(name = "toolbox")
@@ -106,13 +111,19 @@ private object Keys {
 internal sealed interface LaunchRequest {
     data object QuickNote : LaunchRequest
     data class SharedText(val text: String) : LaunchRequest
+    data class SharedMedia(val toolId: String, val uris: List<Uri>) : LaunchRequest
+}
+
+internal sealed interface ToolInput {
+    data class Text(val value: String) : ToolInput
+    data class Media(val uris: List<Uri>) : ToolInput
 }
 
 class ToolboxState(application: Application) : AndroidViewModel(application) {
     private val store = application.toolboxStore
     private val _launchRequest = MutableStateFlow<LaunchRequest?>(null)
     internal val launchRequest = _launchRequest.asStateFlow()
-    private var sharedInput: Pair<String, String>? = null
+    private var sharedInput: Pair<String, ToolInput>? = null
 
     internal val preferences = store.data
         .catch { error ->
@@ -123,12 +134,15 @@ class ToolboxState(application: Application) : AndroidViewModel(application) {
 
     internal fun openQuickNote() { _launchRequest.value = LaunchRequest.QuickNote }
     internal fun shareText(text: String) { _launchRequest.value = LaunchRequest.SharedText(text) }
+    internal fun shareMedia(toolId: String, uris: List<Uri>) {
+        _launchRequest.value = LaunchRequest.SharedMedia(toolId, uris)
+    }
     internal fun clearRequest() { _launchRequest.value = null }
 
-    internal fun stageToolInput(text: String): String =
-        UUID.randomUUID().toString().also { token -> sharedInput = token to text }
+    internal fun stageToolInput(input: ToolInput): String =
+        UUID.randomUUID().toString().also { token -> sharedInput = token to input }
 
-    internal fun takeToolInput(token: String?): String? {
+    internal fun takeToolInput(token: String?): ToolInput? {
         val input = sharedInput
         return if (input != null && input.first == token) {
             sharedInput = null
@@ -202,7 +216,7 @@ class ToolboxState(application: Application) : AndroidViewModel(application) {
 
     private fun decode(prefs: Preferences) = ToolboxPreferences(
         colorMode = enumValue(prefs[Keys.colorMode], ColorMode.SYSTEM),
-        palette = enumValue(prefs[Keys.palette], Palette.LAVENDER),
+        palette = enumValue(prefs[Keys.palette], Palette.GRAPHITE),
         typeSize = enumValue(prefs[Keys.typeSize], TypeSize.STANDARD),
         density = enumValue(prefs[Keys.density], DensityMode.STANDARD),
         motion = enumValue(prefs[Keys.motion], Motion.STANDARD),

@@ -35,6 +35,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import io.github.siye.littletoolbox.core.tool.ToolCategory
+import io.github.siye.littletoolbox.core.tool.UriInputTool
 
 private enum class Tab(val route: String, val title: String, val icon: Int) {
     HOME("home", "首页", R.drawable.ic_home),
@@ -47,6 +49,7 @@ private enum class Tab(val route: String, val title: String, val icon: Int) {
 private const val TOOL = "tool/{toolId}?input={input}"
 private const val TOOL_HELP = "tool-help/{toolId}"
 private const val COLLECTION = "collection/{id}"
+private const val CATEGORY = "category/{category}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,20 +67,27 @@ internal fun ToolboxApp(state: ToolboxState) {
         if (settings.sounds) view.playSoundEffect(SoundEffectConstants.CLICK)
     }
 
-    fun openTool(id: String, text: String? = null) {
+    fun openTool(id: String, payload: ToolInput? = null) {
         val entry = ToolCatalog.find(id) ?: return
         sound()
         if (entry.module != null) state.visit(id)
-        val input = text?.let(state::stageToolInput)
+        val input = payload?.let(state::stageToolInput)
         nav.navigate(if (input == null) "tool/$id" else "tool/$id?input=$input") {
             launchSingleTop = input == null
         }
     }
 
     LaunchedEffect(request) {
-        if (request === LaunchRequest.QuickNote) {
-            state.clearRequest()
-            openTool(QUICK_NOTE_ID)
+        when (val event = request) {
+            LaunchRequest.QuickNote -> {
+                state.clearRequest()
+                openTool(QUICK_NOTE_ID)
+            }
+            is LaunchRequest.SharedMedia -> {
+                state.clearRequest()
+                openTool(event.toolId, ToolInput.Media(event.uris))
+            }
+            else -> Unit
         }
     }
 
@@ -92,7 +102,10 @@ internal fun ToolboxApp(state: ToolboxState) {
                         COLLECTION -> settings.collections.firstOrNull {
                             it.id == current?.arguments?.getString("id")
                         }?.name ?: "组合"
+                        CATEGORY -> categoryFor(current?.arguments?.getString("category"))?.title ?: "分类"
                         "home-order" -> "首页排序"
+                        "palettes" -> "主题色"
+                        "permissions" -> "应用权限"
                         "help" -> "使用帮助"
                         "about" -> "关于一袖"
                         else -> "一袖"
@@ -151,7 +164,14 @@ internal fun ToolboxApp(state: ToolboxState) {
                         openTool(it)
                     }
                 }
-                composable(Tab.CATEGORIES.route) { CategoriesPage { openTool(it) } }
+                composable(Tab.CATEGORIES.route) {
+                    CategoriesPage { nav.navigate("category/${it.name}") }
+                }
+                composable(CATEGORY) { entry ->
+                    categoryFor(entry.arguments?.getString("category"))?.let { category ->
+                        CategoryToolsPage(category) { openTool(it) }
+                    }
+                }
                 composable(Tab.SEARCH.route) { SearchPage { openTool(it) } }
                 composable(Tab.COLLECTIONS.route) {
                     CollectionsPage(settings, state) { nav.navigate("collection/$it") }
@@ -160,6 +180,8 @@ internal fun ToolboxApp(state: ToolboxState) {
                     SettingsPage(settings, state, onRoute = { nav.navigate(it) })
                 }
                 composable("home-order") { HomeOrderPage(settings, state) }
+                composable("palettes") { PalettePickerPage(settings.palette) { state.palette(it) } }
+                composable("permissions") { PermissionsPage() }
                 composable("about") { AboutPage() }
                 composable("help") { HelpPage { nav.navigate("tool-help/$it") } }
                 composable(COLLECTION) { entry ->
@@ -173,7 +195,13 @@ internal fun ToolboxApp(state: ToolboxState) {
                     val entry = backStack.arguments?.getString("toolId")?.let(ToolCatalog::find)
                     val input = remember(backStack) { state.takeToolInput(backStack.arguments?.getString("input")) }
                     if (entry?.module != null) {
-                        Box(Modifier.fillMaxSize()) { entry.module.Content(input) }
+                        Box(Modifier.fillMaxSize()) {
+                            if (input is ToolInput.Media && entry.module is UriInputTool) {
+                                entry.module.Content(input.uris)
+                            } else {
+                                entry.module.Content((input as? ToolInput.Text)?.value)
+                            }
+                        }
                     } else if (entry != null) PendingToolPage(entry)
                 }
                 composable(TOOL_HELP) { backStack ->
@@ -185,18 +213,19 @@ internal fun ToolboxApp(state: ToolboxState) {
         }
 
         val share = request as? LaunchRequest.SharedText
+        PermissionSetup(canShow = share == null)
         if (share != null) {
             AlertDialog(
                 onDismissRequest = state::clearRequest,
                 title = { Text("打开共享文本") },
                 text = { Text("选择记录内容，或在当前页面查看字数。") },
                 confirmButton = {
-                    TextButton(onClick = { state.clearRequest(); openTool(QUICK_NOTE_ID, share.text) }) {
+                    TextButton(onClick = { state.clearRequest(); openTool(QUICK_NOTE_ID, ToolInput.Text(share.text)) }) {
                         Text("用即记记录")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { state.clearRequest(); openTool(TEXT_STATS_ID, share.text) }) {
+                    TextButton(onClick = { state.clearRequest(); openTool(TEXT_STATS_ID, ToolInput.Text(share.text)) }) {
                         Text("统计字数")
                     }
                 },
@@ -204,3 +233,5 @@ internal fun ToolboxApp(state: ToolboxState) {
         }
     }
 }
+
+private fun categoryFor(name: String?): ToolCategory? = ToolCategory.entries.firstOrNull { it.name == name }

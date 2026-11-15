@@ -1,5 +1,6 @@
 package io.github.siye.littletoolbox.core.tool
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 
 enum class ToolCategory(val title: String) {
@@ -24,4 +25,9 @@ interface ToolModule {
 
     @Composable
     fun Content(initialText: String?)
+}
+
+interface UriInputTool : ToolModule {
+    @Composable
+    fun Content(uris: List<Uri>)
 }
